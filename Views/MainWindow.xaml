@@ -1,0 +1,19 @@
+﻿<Window x:Class="ModelsToJson.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:prism="http://prismlibrary.com/"
+        xmlns:hc="https://handyorg.github.io/handycontrol"
+        mc:Ignorable="d"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"        
+        xmlns:vm="clr-namespace:ModelsToJson.ViewModels"
+        xmlns:models="clr-namespace:ModelsToJson.Models"
+        prism:ViewModelLocator.AutoWireViewModel="True"
+        d:DataContext="{d:DesignInstance vm:MainWindowViewModel}"
+        Title="{Binding Title}"      
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <ContentControl prism:RegionManager.RegionName="AnyModelToJsonView"/>
+    </Grid>
+</Window>

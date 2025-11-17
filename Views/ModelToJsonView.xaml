@@ -1,0 +1,167 @@
+﻿<UserControl x:Class="ModelsToJson.Views.ModelToJsonView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:behavior="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:local="clr-namespace:ModelsToJson.Views"
+             xmlns:extension="clr-namespace:ModelsToJson.Extension"
+             xmlns:vm="clr-namespace:ModelsToJson.ViewModels"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             mc:Ignorable="d" 
+             prism:ViewModelLocator.AutoWireViewModel="True"
+             d:DataContext="{d:DesignInstance vm:ModelToJsonViewModel}"
+             >
+    <UserControl.Resources>
+        <Style x:Key="labelStyle" TargetType="Label" BasedOn="{StaticResource LabelDefault}">
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+
+        <ObjectDataProvider x:Key="comboBoxEnum" MethodName="GetNames" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="extension:EncodingRule"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </UserControl.Resources>
+
+
+    <Grid extension:GridHelper.RowDefinitions="auto,auto,auto,auto,auto,auto,auto">
+        <StackPanel Grid.Row="0" Background="Gray">
+            <TextBlock Text="Model To Json Tool" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Background="#F7F7F7" Orientation="Horizontal">
+            <Label Content="Select Your Model：" Margin="10,0,10,0"/>
+            <ComboBox ItemsSource="{Binding ModelNames}" BorderBrush="Black" Margin="0,10,0,10">
+                <behavior:Interaction.Triggers>
+                    <behavior:EventTrigger EventName="SelectionChanged">
+                        <behavior:InvokeCommandAction Command="{Binding GetModelPropertiesCommand}"
+                                                      PassEventArgsToCommand="True"
+                                                      CommandParameter="{Binding Path=SelectedItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
+                    </behavior:EventTrigger>
+                </behavior:Interaction.Triggers>
+            </ComboBox>
+            
+            <Label Content="Excel File：" Margin="10,0,10,0"/>
+            <TextBox Margin="10,10,0,10" Text="{Binding ExcelFilePath}" MinWidth="150" HorizontalContentAlignment="Left" 
+                     VerticalContentAlignment="Center"  BorderBrush="#C3C3C3" BorderThickness="1"/>
+            <Button Margin="10" Content="Load Excel" Command="{Binding LoadExcelCommand}" BorderBrush="#8C8C8C"/>
+
+            <Label Content="Choose Sheet：" Margin="10,0,10,0"/>
+            <ComboBox ItemsSource="{Binding XlsFileModels}" Margin="10,10,0,10" SelectedIndex="0" MinWidth="100">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:XlsFileModel}">
+                        <CheckBox Content="{Binding SheetName}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="5"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Background="#F7F7F7" Orientation="Horizontal">
+            <Label Margin="10,0,0,0" Content="Json Base Path："/>
+            <TextBox Margin="10,10,0,10" Text="{Binding BaseJsonPath}" Width="150" HorizontalContentAlignment="Left" VerticalContentAlignment="Center"  BorderBrush="#C3C3C3" 
+ BorderThickness="1"/>
+            <Label Margin="50,0,0,0" Content="Json File Name："/>
+            <TextBox Margin="10,10,0,10" Text="{Binding JsonFileName}" Width="150" HorizontalContentAlignment="Left" VerticalContentAlignment="Center"  BorderBrush="#C3C3C3" 
+BorderThickness="1"/>
+
+            <Button Margin="50,0,0,0" Content="Get Table Header" Command="{Binding GetHeadersCommand}" BorderBrush="#8C8C8C"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="3" ScrollViewer.VerticalScrollBarVisibility="Visible" Background="#D1D1D1" MaxHeight="400">
+            <ItemsControl ItemsSource="{Binding ModelProperties}" HorizontalAlignment="Stretch">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Height="40" Margin="0,2" HorizontalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="{Binding PropertyName}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding DataContext.Headers, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                      SelectedItem="{Binding SelectedHead, Mode=TwoWay}" MinWidth="100" SelectedIndex="0"
+                                      HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                
+                                <Label Content="Prefix：" Margin="10,0,0,0" Visibility="{Binding PrefixIsVisble, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                <TextBox Margin="10,6,0,6" Text="{Binding Prefix}" Visibility="{Binding PrefixIsVisble, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                         Width="50" HorizontalContentAlignment="Left" VerticalContentAlignment="Center"  
+                                         BorderBrush="#C3C3C3" BorderThickness="1"/>
+
+                                <Label Content="Suffix：" Margin="10,0,0,0" Visibility="{Binding SuffixIsVisble, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                <TextBox Margin="10,6,0,6" Text="{Binding Suffix}" Width="50" Visibility="{Binding SuffixIsVisble, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                         HorizontalContentAlignment="Left" VerticalContentAlignment="Center" BorderBrush="#C3C3C3" BorderThickness="1"/>
+
+                                <Label Content="Separator：" Margin="10,0,0,0" Visibility="{Binding SeparatorIsVisble, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                <TextBox Margin="10,6,0,6" Text="{Binding Separator}" Width="50" Visibility="{Binding SeparatorIsVisble, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                         HorizontalContentAlignment="Left" VerticalContentAlignment="Center" BorderBrush="#C3C3C3" BorderThickness="1"/>
+
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal">
+            <!--<Label Style="{StaticResource labelStyle}" Margin="10,5,10,5" Content="CorrectedValue:"/>
+            <TextBox Text="{Binding CorrectedValue}" Margin="0,5,0,5" Width="100"/>-->
+            <Label  Margin="10,5,10,5" Content="Ignore the row when the cell content of this column is empty:"/>
+            <ComboBox ItemsSource="{Binding IgnoreRowContentIfColumnEmpries}" Margin="10,10,0,10" SelectedIndex="0" MinWidth="100">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:IgnoreRowContentIfColumnEmpry}">
+                        <CheckBox Content="{Binding PropertyName}" IsChecked="{Binding Selected, Mode=TwoWay}" Margin="5"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            
+            <CheckBox Content="Merge the selected sheets into one json" IsChecked="{Binding IsMergeSheetJson}" Margin="20,0,0,0" FontSize="13"/>
+        </StackPanel>
+        
+        <StackPanel Grid.Row="5" Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <Label Content="Ignore Head Rows" Margin="0,0,10,0" Foreground="Black"/>
+                <TextBox Text="{Binding IgnoreCsvHeadRows, Mode=TwoWay}" 
+                     BorderBrush="Black" 
+                     BorderThickness="1"
+                     Height="30"
+                     Width="50"/>
+            </StackPanel>
+            
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <Label Content="Ignore Left Columns" Margin="0,0,10,0" Foreground="Black"/>
+                <TextBox Text="{Binding IgnoreCsvLeftColumns, Mode=TwoWay}" 
+                     BorderBrush="Black" 
+                     BorderThickness="1"
+                     Height="30"                             
+                     Width="50"/>
+            </StackPanel>
+            
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <Label Content="Encoding" Margin="0,0,10,0" Foreground="Black"/>
+                <ComboBox Height="auto" BorderBrush="Black" 
+                  ItemsSource="{Binding Source={StaticResource comboBoxEnum}}" 
+                  SelectedValue="{Binding EncodRule, Mode=TwoWay}" 
+                  SelectedIndex="0"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal"
+            Grid.Row="6"
+            Width="auto"
+            Height="auto"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Center">
+            <Button Margin="5" Height="30" Content="Generated" Width="auto"
+            BorderBrush="Green"
+            Foreground="Black" 
+            Command="{Binding GenerateJsonCommand}"
+            />
+        </StackPanel>
+    </Grid>
+</UserControl>

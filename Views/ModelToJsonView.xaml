@@ -31,7 +31,7 @@
 
 
     <Grid extension:GridHelper.RowDefinitions="auto,auto,auto,auto,auto,auto,auto">
-        <StackPanel Grid.Row="0" Background="Gray">
+        <StackPanel Grid.Row="0" Background="#00B2FF">
             <TextBlock Text="Model To Json Tool" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </StackPanel>
 

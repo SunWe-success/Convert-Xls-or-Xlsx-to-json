@@ -12,8 +12,10 @@
         prism:ViewModelLocator.AutoWireViewModel="True"
         d:DataContext="{d:DesignInstance vm:MainWindowViewModel}"
         Title="{Binding Title}"      
-        WindowStartupLocation="CenterScreen">
-    <Grid>
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="ToolWindow"
+        MaxWidth="1100">
+    <Grid >
         <ContentControl prism:RegionManager.RegionName="AnyModelToJsonView"/>
     </Grid>
 </Window>

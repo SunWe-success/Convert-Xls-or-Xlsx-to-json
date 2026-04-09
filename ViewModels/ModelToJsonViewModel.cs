@@ -226,7 +226,7 @@ namespace ModelsToJson.ViewModels
                             if (!XlsFileModels[i].IsSelected) continue;
                             ISheet sheet = XlsFileModels[i].Sheet;
                             var contentPatams = GetSheetContent(sheet);
-                            var TempObjectModels = GenerateXslxJson(contentPatams);
+                            var TempObjectModels = GenerateXslxJson(contentPatams, sheet.SheetName);
                             if (TempObjectModels == null)
                             {
                                 Growl.Success($"Json文件生成失败！路径：{jsonPath}");
@@ -248,7 +248,7 @@ namespace ModelsToJson.ViewModels
                             string partJsonPath = Path.Combine(BaseJsonPath, $"{JsonFileName}-{i}.json");
                             ISheet sheet = selecteadXls[i].Sheet;
                             var contentPatams = GetSheetContent(sheet);
-                            var TempObjectModels = GenerateXslxJson(contentPatams);
+                            var TempObjectModels = GenerateXslxJson(contentPatams, sheet.SheetName);
                             if (TempObjectModels == null) { Growl.Success($"Json文件生成失败！路径：{jsonPath}"); return; }
                             var jsonStr = JsonConvert.SerializeObject(TempObjectModels, Formatting.Indented);
                             using var fileStream = new FileStream(partJsonPath, FileMode.Create, FileAccess.Write);
@@ -274,7 +274,14 @@ namespace ModelsToJson.ViewModels
             }
             else if (excelFilePath.EndsWith(".xls", StringComparison.CurrentCultureIgnoreCase) || excelFilePath.EndsWith(".xlsx", StringComparison.CurrentCultureIgnoreCase))
             {
-                ReadXls();
+                try
+                {
+                    ReadXls();
+                }
+                catch (Exception ex)
+                {
+                    Growl.Error($"文件加载失败，{ex.Message}.");
+                }               
             }
             else
             {
@@ -334,6 +341,9 @@ namespace ModelsToJson.ViewModels
             {
                 foreach (var property in properties)
                 {
+                    var attribute = property.GetCustomAttribute<IgnoreAttribute>();
+                    if (attribute != null && attribute.IsIngore) continue;
+
                     var model = new ModelPropertyHead()
                     {
                         PropertyName = property.Name,
@@ -363,7 +373,7 @@ namespace ModelsToJson.ViewModels
             if (string.IsNullOrEmpty(jsonPath)) return success;
             try
             {
-                ObservableCollection<object> configModels = GetJsonModels(currentContent);
+                ObservableCollection<object> configModels = GetJsonModels(currentContent, "");
                 var jsonStr = JsonConvert.SerializeObject(configModels, Formatting.Indented);
                 using var fileStream = new FileStream(jsonPath, FileMode.Create, FileAccess.Write);
                 using var streamWriter = new StreamWriter(fileStream, Encoding.UTF8);
@@ -377,12 +387,12 @@ namespace ModelsToJson.ViewModels
             return success;
         }
 
-        private ObservableCollection<object> GenerateXslxJson(List<string[]> currentContent)
+        private ObservableCollection<object> GenerateXslxJson(List<string[]> currentContent, string sheetName)
         {
             if (currentContent == null || currentContent.Count == 0) return null;
             try
             {
-                ObservableCollection<object> configModels = GetJsonModels(currentContent);
+                ObservableCollection<object> configModels = GetJsonModels(currentContent, sheetName);
 
                 return configModels;
             }
@@ -443,7 +453,8 @@ namespace ModelsToJson.ViewModels
             //读取sheet
             xlsFileModels.Clear();
             using var fileStream = new FileStream(excelFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            IWorkbook workbook = excelFilePath.EndsWith(".xls", StringComparison.CurrentCultureIgnoreCase) ? new HSSFWorkbook(fileStream) : new XSSFWorkbook(fileStream);
+            //IWorkbook workbook = excelFilePath.EndsWith(".xls", StringComparison.CurrentCultureIgnoreCase) ? new HSSFWorkbook(fileStream) : new XSSFWorkbook(fileStream);
+            IWorkbook workbook = WorkbookFactory.Create(fileStream);
             for (int sheetIndex = 0; sheetIndex < workbook.NumberOfSheets; sheetIndex++)
             {
                 XlsFileModel model = new()
@@ -516,63 +527,78 @@ namespace ModelsToJson.ViewModels
             return notHeadContents;
         }
 
-        private ObservableCollection<object> GetJsonModels(List<string[]> currentContent)
+        private ObservableCollection<object> GetJsonModels(List<string[]> currentContent, string sheetName)
         {
             ObservableCollection<object> configModels = [];
             var ignoreConditions = ignoreRowContentIfColumnEmpries.Where(x => x.Selected).ToList();
             Type type = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.Name == selectedClassName);
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            for (int i = 0; i < currentContent.Count; i++)
+            try
             {
-                var data = currentContent[i];
-                if (data.Length != _headCorreIndexes.Count)//必须完全对齐，否则容易错位
+                for (int i = 0; i < currentContent.Count; i++)
                 {
-                    Growl.Error($"第{i+1}行的数据长度{data.Length}与对照组长度{_headCorreIndexes.Count}不一致。");
-                    continue;
+                    var data = currentContent[i];
+                    if (data.Length != _headCorreIndexes.Count)//必须完全对齐，否则容易错位
+                    {
+                        Growl.Error($"第{i + 1}行的数据长度{data.Length}与对照组长度{_headCorreIndexes.Count}不一致。Sheet名：{sheetName}");
+                        throw new InvalidOperationException($"第{i + 1}行的数据长度{data.Length}与对照组长度{_headCorreIndexes.Count}不一致。");                        
+                    }
+                    bool isContinue = false;
+                    foreach (var item in ignoreConditions)
+                    {
+                        if (string.IsNullOrEmpty(data[_headCorreIndexes[propertyCorreHead[item.PropertyName]]]))
+                        {
+                            isContinue = true;
+                            break;
+                        }
+                    }
+                    if (isContinue) { continue; }
+
+                    var instance = Activator.CreateInstance(type);
+
+                    foreach (var property in properties)
+                    {
+                        var attribute = property.GetCustomAttribute<IgnoreAttribute>();
+                        if (attribute != null && attribute.IsManualAssignment)
+                        {
+                            property.SetValue(instance, sheetName);
+                            continue;
+                        }
+
+                        object value = new();
+                        if (propertyCorreHead[property.Name] == "None")
+                        {
+                            value = null;
+                        }
+                        else
+                        {
+                            value = data[_headCorreIndexes[propertyCorreHead[property.Name]]];
+                        }
+                        if (property.Name == "PLCLink" && value.ToString().EndsWith("25514"))
+                        {
+
+                        }
+                        var modelProperty = modelProperties.FirstOrDefault(x => x.PropertyName == property.Name);
+                        object convertValue = ConvertValue(value, property.PropertyType, modelProperty.Separator);
+                        if (property.PropertyType == typeof(string))
+                        {
+                            StringBuilder sb = new();
+                            sb.Append(modelProperty.Prefix);
+                            sb.Append(convertValue.ToString());
+                            sb.Append(modelProperty.Suffix);
+                            convertValue = sb.ToString();
+                        }
+                        property.SetValue(instance, convertValue);
+                    }
+
+                    configModels.Add(instance);
                 }
-                bool isContinue = false;
-                foreach (var item in ignoreConditions)
-                {
-                    if (string.IsNullOrEmpty(data[_headCorreIndexes[propertyCorreHead[item.PropertyName]]]))
-                    {
-                        isContinue = true;
-                        break;
-                    }
-                }
-                if (isContinue) { continue; }
-
-                var instance = Activator.CreateInstance(type);
-
-                foreach (var property in properties)
-                {
-                    object value = new();
-                    if (propertyCorreHead[property.Name] == "None")
-                    {
-                        value = null;
-                    }
-                    else
-                    {
-                        value = data[_headCorreIndexes[propertyCorreHead[property.Name]]];
-                    }
-                    if (property.Name == "PLCLink" && value.ToString().EndsWith("25514"))
-                    {
-
-                    }
-                    var modelProperty = modelProperties.FirstOrDefault(x => x.PropertyName == property.Name);
-                    object convertValue = ConvertValue(value, property.PropertyType, modelProperty.Separator);
-                    if (property.PropertyType == typeof(string))
-                    {
-                        StringBuilder sb = new();
-                        sb.Append(modelProperty.Prefix);
-                        sb.Append(convertValue.ToString());
-                        sb.Append(modelProperty.Suffix);
-                        convertValue = sb.ToString();
-                    }
-                    property.SetValue(instance, convertValue);
-                }
-
-                configModels.Add(instance);
             }
+            catch (Exception ex)
+            {
+                throw;
+            }
+            
             return configModels;
         }
 
@@ -804,5 +830,21 @@ namespace ModelsToJson.ViewModels
         public bool IsSelected { get; set; }
 
         public ISheet Sheet { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
+    public class IgnoreAttribute : Attribute
+    {
+        /// <summary>
+        /// 指示是否忽略该属性，根据自身的需求
+        /// </summary>
+        public bool IsIngore;
+        /// <summary>
+        /// 指示是否应该手动赋值
+        /// </summary>
+        public bool IsManualAssignment;
+        public IgnoreAttribute()
+        {
+        }
     }
 }

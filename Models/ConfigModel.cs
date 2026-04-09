@@ -1,4 +1,5 @@
-﻿using Prism.Mvvm;
+﻿using ModelsToJson.ViewModels;
+using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,7 @@ namespace ModelsToJson.Models
         private List<string> _options = [];
         private string _discription = string.Empty;
         private string _PLCLink = string.Empty;
+        private string _sheetName = string.Empty;
 
         public int ECID
         { get => _eCID; set => SetProperty(ref _eCID, value); }
@@ -50,6 +52,10 @@ namespace ModelsToJson.Models
 
         public string PLCLink
         { get => _PLCLink; set => SetProperty(ref _PLCLink, value); }
+
+        [IgnoreAttribute(IsIngore = true, IsManualAssignment = true)]        
+        public string SheetName
+        { get => _sheetName; set => SetProperty(ref _sheetName, value); }
     }
 
     public enum ConfigDataType
